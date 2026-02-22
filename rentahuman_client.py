@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Get API key from environment
-RENTAHUMAN_API_KEY = os.getenv("RENTAHUMAN_API_KEY", "rah_your_api_key_here")
+RENTAHUMAN_API_KEY = os.getenv("RENTAHUMAN_API_KEY", "")
 RENTAHUMAN_BASE_URL = "https://api.rentahuman.ai"
 
 # Mock mode for testing
