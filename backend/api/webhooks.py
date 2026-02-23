@@ -82,7 +82,13 @@ async def rentahuman_webhook(
     # In production, verify signature
     if not settings.is_development:
         webhook_secret = settings.rentahuman_webhook_secret
-        if webhook_secret and x_rentahuman_signature:
+        if webhook_secret:
+            if not x_rentahuman_signature:
+                logger.warning("Missing RentAHuman webhook signature")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Missing signature",
+                )
             if not verify_rentahuman_signature(
                 payload_bytes,
                 x_rentahuman_signature,
@@ -281,6 +287,15 @@ async def stripe_webhook(
 
     # Get raw payload
     payload = await request.body()
+
+    # Reject unsigned requests when Stripe secret is configured
+    if not settings.is_development:
+        if settings.stripe_webhook_secret and not stripe_signature:
+            logger.warning("Missing Stripe webhook signature")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing signature",
+            )
 
     # Process webhook
     result = await payment_service.process_stripe_webhook(
