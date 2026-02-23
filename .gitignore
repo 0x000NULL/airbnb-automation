@@ -58,3 +58,12 @@ htmlcov/
 # Logs
 *.log
 logs/
+
+# OS
+Thumbs.db
+
+# Uploads (dev mock storage)
+/tmp/airbnb-automation/
+
+# Virtual environments
+.venv/
