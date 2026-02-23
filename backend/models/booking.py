@@ -101,7 +101,7 @@ class AirbnbBooking(Base):
     )
 
     # Relationships
-    property: Mapped["Property"] = relationship(
+    property_rel: Mapped["Property"] = relationship(
         "Property",
         back_populates="bookings",
         lazy="selectin",

@@ -169,7 +169,7 @@ class Task(Base):
     )
 
     # Relationships
-    property: Mapped["Property"] = relationship(
+    property_rel: Mapped["Property"] = relationship(
         "Property",
         back_populates="tasks",
         lazy="selectin",

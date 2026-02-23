@@ -146,13 +146,13 @@ class Property(Base):
     )
     bookings: Mapped[list["AirbnbBooking"]] = relationship(
         "AirbnbBooking",
-        back_populates="property",
+        back_populates="property_rel",
         lazy="selectin",
         cascade="all, delete-orphan",
     )
     tasks: Mapped[list["Task"]] = relationship(
         "Task",
-        back_populates="property",
+        back_populates="property_rel",
         lazy="selectin",
         cascade="all, delete-orphan",
     )

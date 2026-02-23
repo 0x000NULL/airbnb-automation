@@ -85,12 +85,12 @@ class AutomationConfig(Base):
         default=False,
     )
     cleaning_preference: Mapped[HumanPreference] = mapped_column(
-        Enum(HumanPreference),
+        Enum(HumanPreference, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         default=HumanPreference.HIGHEST_RATED,
     )
     maintenance_preference: Mapped[HumanPreference] = mapped_column(
-        Enum(HumanPreference),
+        Enum(HumanPreference, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         default=HumanPreference.NEAREST,
     )
@@ -105,7 +105,7 @@ class AutomationConfig(Base):
         default=3,
     )
     notification_method: Mapped[NotificationMethod] = mapped_column(
-        Enum(NotificationMethod),
+        Enum(NotificationMethod, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         default=NotificationMethod.EMAIL,
     )

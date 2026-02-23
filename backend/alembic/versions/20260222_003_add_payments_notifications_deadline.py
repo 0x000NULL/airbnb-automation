@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import UUID
 
 # revision identifiers
 revision = "20260222_003"
-down_revision = "20260222_002_add_external_id_and_updated_at"
+down_revision = "002"
 branch_labels = None
 depends_on = None
 
