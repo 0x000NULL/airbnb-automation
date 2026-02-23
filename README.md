@@ -1,64 +1,230 @@
 # Airbnb/VRBO Hosting Automation
 
-Automate the operational burden of managing multiple Airbnb/VRBO properties by intelligently hiring humans via RentAHuman MCP for cleaning, maintenance, communication, and more.
+AI-powered hosting assistant that automatically hires humans via RentAHuman for property management tasks including cleaning, maintenance, guest communication, and more.
 
-## 🎯 Problem
+## Features
 
-Managing 5+ Airbnb/VRBO properties is overwhelming:
-- **Turnover management:** 3-4 hours per guest (cleaning, restocking, communication)
-- **Finding reliable help:** 40% of hosts report staff reliability issues
-- **Scheduling nightmare:** Coordinating cleaners, maintenance, photographers
-- **Quality control:** Inconsistent service across properties
+- **Automatic Task Generation** - Creates cleaning, restocking, and communication tasks from Airbnb/VRBO bookings
+- **Intelligent Human Booking** - Automatically books the best-fit human for each task via RentAHuman API
+- **Real-time Webhooks** - Receives booking status updates and handles cancellations with automatic replacement
+- **Cost Optimization** - Selects cheapest option for non-urgent tasks, highest-rated for urgent/tight turnovers
+- **Full Dashboard** - Web interface for managing properties, viewing tasks, and monitoring analytics
+- **MCP Server** - Claude Desktop integration for AI-powered property management
 
-## 💡 Solution
+## Tech Stack
 
-AI-powered hosting assistant that **automatically hires humans via RentAHuman** for:
-- ✨ Turnover cleaning & restocking
-- 📞 Guest communication & support
-- 🔧 Maintenance & repairs
-- 📸 Photography & listing updates
-- 🧹 Deep cleaning & seasonal prep
+### Backend
+- **Framework:** FastAPI (Python 3.11+, async)
+- **Database:** PostgreSQL with async SQLAlchemy
+- **Task Queue:** Celery with Redis
+- **APIs:** RentAHuman, Airbnb, VRBO (mock-ready)
 
-## 📊 Market Opportunity
+### Frontend
+- **Framework:** Next.js 14 (React)
+- **Styling:** Tailwind CSS
+- **State:** TanStack Query
+- **Auth:** NextAuth.js
 
-- **TAM:** 4M active Airbnb hosts
-- **SAM:** 500k hosts managing 3+ properties
-- **Revenue per host:** $6-8k/year (15% commission on $40k annual turnover spend)
-- **Path to profitability:** 100 hosts → $22.5k/month
+### Infrastructure
+- **Storage:** DigitalOcean Spaces (S3-compatible)
+- **Container:** Docker + Docker Compose
 
-## 🏗️ Architecture
+## Quick Start
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+
+- Docker & Docker Compose
+- PostgreSQL 15+
+- Redis 7+
+
+### Development Setup
+
+1. **Clone and setup environment**
+
+```bash
+git clone https://github.com/yourusername/airbnb-automation.git
+cd airbnb-automation
+cp .env.example .env
+# Edit .env with your configuration
+```
+
+2. **Start services with Docker Compose**
+
+```bash
+docker-compose up -d
+```
+
+This starts:
+- PostgreSQL database
+- Redis cache
+- Backend API (FastAPI)
+- Celery worker
+- Celery beat scheduler
+- Frontend (Next.js)
+
+3. **Seed test data**
+
+```bash
+cd backend
+python scripts/seed_data.py
+```
+
+4. **Access the application**
+
+- Frontend: http://localhost:3000
+- API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+
+### Manual Setup (without Docker)
+
+**Backend:**
+```bash
+cd backend
+pip install -e .
+alembic upgrade head
+uvicorn main:app --reload
+```
+
+**Celery worker:**
+```bash
+cd backend
+celery -A celery_config worker --loglevel=info
+```
+
+**Celery beat:**
+```bash
+cd backend
+celery -A celery_config beat --loglevel=info
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## Configuration
+
+Key environment variables (see `.env.example` for full list):
+
+```env
+# Database
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/airbnb_automation
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+
+# JWT Auth
+JWT_SECRET_KEY=your-secret-key
+
+# RentAHuman API
+RENTAHUMAN_API_KEY=rah_xxx
+RENTAHUMAN_MOCK_MODE=true  # Set to false for real API
+
+# DigitalOcean Spaces
+DO_SPACES_KEY=your-key
+DO_SPACES_SECRET=your-secret
+DO_SPACES_BUCKET=airbnb-automation-photos
+```
+
+## MCP Server (Claude Desktop)
+
+The project includes an MCP server for Claude Desktop integration:
+
+1. Copy `backend/mcp_config_example.json` to your Claude Desktop config
+2. Update the Python path and project path
+3. Restart Claude Desktop
+
+Available tools:
+- `search_humans` - Search for available humans
+- `create_booking` - Book a human for a task
+- `get_booking_status` - Check booking status
+- `cancel_booking` - Cancel a booking
+- `list_skills` - List available skills
+
+## Project Structure
 
 ```
-Airbnb/VRBO Host Dashboard (Next.js)
-    ↓
-Hosting Automation Engine (FastAPI)
-    ↓
-RentAHuman MCP Client
-    ↓
-RentAHuman API (human booking, payments)
+airbnb-automation/
+├── backend/
+│   ├── api/                 # FastAPI routes
+│   ├── models/              # SQLAlchemy models
+│   ├── services/            # Business logic
+│   │   ├── rentahuman_client.py
+│   │   ├── booking_engine.py
+│   │   ├── task_generator.py
+│   │   └── storage_service.py
+│   ├── tasks/               # Celery tasks
+│   ├── tests/               # Pytest tests
+│   ├── mcp_server.py        # MCP server
+│   └── main.py              # FastAPI app
+├── frontend/
+│   ├── app/                 # Next.js pages
+│   └── lib/                 # API client, utils
+└── docker-compose.yml
 ```
 
-## 📅 Timeline
+## API Endpoints
 
-- **Weeks 1-2:** Foundation & API integration (Airbnb, VRBO, RentAHuman)
-- **Weeks 3-4:** RentAHuman MCP integration & booking automation
-- **Weeks 5-6:** Frontend dashboard & monitoring UI
-- **Weeks 7-8:** Advanced features, testing, beta launch
-- **Total:** 8 weeks, ~200-250 hours
+### Authentication
+- `POST /api/v1/auth/signup` - Create account
+- `POST /api/v1/auth/login` - Login
+- `GET /api/v1/auth/me` - Current user
 
-## 📈 Success Metrics
+### Properties
+- `GET /api/v1/properties` - List properties
+- `POST /api/v1/properties` - Create property
+- `GET /api/v1/properties/{id}` - Get property
+- `PATCH /api/v1/properties/{id}` - Update property
+- `DELETE /api/v1/properties/{id}` - Delete property
 
-- Booking rate: >90% of tasks auto-booked
-- Completion rate: >95% of bookings completed
-- Host satisfaction: NPS >50
-- Cost efficiency: 30% cheaper than manual hiring
+### Bookings
+- `GET /api/v1/bookings` - List guest bookings
+- `GET /api/v1/bookings/{id}` - Get booking details
 
-## 🚀 Get Started
+### Tasks
+- `GET /api/v1/tasks` - List tasks (filterable by status)
+- `GET /api/v1/tasks/{id}` - Get task details
+- `PATCH /api/v1/tasks/{id}` - Update task
+- `POST /api/v1/tasks/{id}/book` - Book human for task
 
-See `PLAN.md` for detailed breakdown.
+### Humans
+- `GET /api/v1/humans/search` - Search for humans
+- `GET /api/v1/humans/skills` - List available skills
+
+### Webhooks
+- `POST /api/v1/webhooks/rentahuman` - RentAHuman callbacks
+- `POST /api/v1/webhooks/stripe` - Stripe payment callbacks
+
+## Testing
+
+```bash
+cd backend
+pytest tests/ -v
+```
+
+Run with coverage:
+```bash
+pytest tests/ --cov=. --cov-report=html
+```
+
+## Automation Flow
+
+1. **Booking Detection** - Celery polls Airbnb/VRBO every 15 minutes
+2. **Task Generation** - System creates cleaning/restocking/communication tasks
+3. **Human Search** - BookingEngine searches RentAHuman for best match
+4. **Booking Creation** - Creates booking with retry logic and fallback
+5. **Status Tracking** - Webhooks update task status in real-time
+6. **Completion** - Photos uploaded to DigitalOcean Spaces
+
+## License
+
+MIT
 
 ---
 
-**Status:** Planning phase (ready for development)  
-**Owner:** Ethan Aldrich  
-**Created:** 2026-02-22
+**Status:** Development
+**Owner:** Ethan Aldrich
