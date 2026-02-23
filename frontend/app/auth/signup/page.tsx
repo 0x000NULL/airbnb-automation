@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { api } from '@/lib/api';
+import { authApi, storeTokens } from '@/lib/api';
 
 const signupSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -38,16 +38,12 @@ export default function SignupPage() {
     setError(null);
 
     try {
-      await api.post('/auth/signup', {
-        name: data.name,
-        email: data.email,
-        password: data.password,
-      });
-
-      router.push('/auth/login?registered=true');
+      const result = await authApi.signup(data.name, data.email, data.password);
+      storeTokens(result);
+      router.push('/dashboard');
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } };
-      setError(error.response?.data?.detail || 'An error occurred. Please try again.');
+      const message = err instanceof Error ? err.message : 'An error occurred. Please try again.';
+      setError(message);
     } finally {
       setIsLoading(false);
     }

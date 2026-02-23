@@ -129,6 +129,16 @@ async def signup(request: Request, response: Response, user_data: UserCreate, db
     access_token = create_access_token(str(user.id))
     refresh_token = create_refresh_token(str(user.id))
 
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=settings.jwt_access_token_expire_minutes * 60,
+        path="/",
+    )
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -140,7 +150,7 @@ async def signup(request: Request, response: Response, user_data: UserCreate, db
 
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("5/minute")
-async def login(request: Request, login_data: UserLogin, db: DbSession) -> TokenResponse:
+async def login(request: Request, response: Response, login_data: UserLogin, db: DbSession) -> TokenResponse:
     """
     Authenticate user and return JWT token.
     """
@@ -167,6 +177,16 @@ async def login(request: Request, login_data: UserLogin, db: DbSession) -> Token
     access_token = create_access_token(str(user.id))
     refresh_token = create_refresh_token(str(user.id))
 
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=settings.jwt_access_token_expire_minutes * 60,
+        path="/",
+    )
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -178,7 +198,7 @@ async def login(request: Request, login_data: UserLogin, db: DbSession) -> Token
 
 @router.post("/oauth/google", response_model=TokenResponse)
 @limiter.limit("5/minute")
-async def google_oauth(request: Request, oauth_data: GoogleOAuthRequest, db: DbSession) -> TokenResponse:
+async def google_oauth(request: Request, response: Response, oauth_data: GoogleOAuthRequest, db: DbSession) -> TokenResponse:
     """
     Authenticate via Google OAuth.
 
@@ -286,6 +306,16 @@ async def google_oauth(request: Request, oauth_data: GoogleOAuthRequest, db: DbS
     access_token = create_access_token(str(user.id))
     refresh_token = create_refresh_token(str(user.id))
 
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=settings.jwt_access_token_expire_minutes * 60,
+        path="/",
+    )
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -296,7 +326,7 @@ async def google_oauth(request: Request, oauth_data: GoogleOAuthRequest, db: DbS
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(request: Request, db: DbSession) -> TokenResponse:
+async def refresh_token(request: Request, response: Response, db: DbSession) -> TokenResponse:
     """
     Refresh an access token using a refresh token.
 
@@ -329,6 +359,16 @@ async def refresh_token(request: Request, db: DbSession) -> TokenResponse:
 
     new_access_token = create_access_token(str(user.id))
     new_refresh_token = create_refresh_token(str(user.id))
+
+    response.set_cookie(
+        key="access_token",
+        value=new_access_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=settings.jwt_access_token_expire_minutes * 60,
+        path="/",
+    )
 
     return TokenResponse(
         access_token=new_access_token,

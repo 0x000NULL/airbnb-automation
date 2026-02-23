@@ -147,6 +147,19 @@ async def get_cost_analysis(
     """
     Get detailed cost analysis.
     """
+    try:
+        return await _get_cost_analysis(current_user, db, days)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error fetching cost analysis")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch cost analysis: {str(e)}",
+        )
+
+
+async def _get_cost_analysis(current_user, db, days: int) -> CostAnalysis:
     end_date = date.today()
     start_date = end_date - timedelta(days=days)
 
@@ -250,6 +263,19 @@ async def get_human_performance(
     """
     Get human performance metrics.
     """
+    try:
+        return await _get_human_performance(current_user, db, days)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error fetching human performance metrics")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch human performance metrics: {str(e)}",
+        )
+
+
+async def _get_human_performance(current_user, db, days: int) -> HumanPerformance:
     end_date = date.today()
     start_date = end_date - timedelta(days=days)
 
@@ -379,6 +405,19 @@ async def get_roi_analysis(
     """
     Get ROI calculation.
     """
+    try:
+        return await _get_roi_analysis(current_user, db, days)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error fetching ROI analysis")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch ROI analysis: {str(e)}",
+        )
+
+
+async def _get_roi_analysis(current_user, db, days: int) -> ROIAnalysis:
     end_date = date.today()
     start_date = end_date - timedelta(days=days)
 

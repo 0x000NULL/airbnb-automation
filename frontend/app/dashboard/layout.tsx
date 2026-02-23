@@ -1,8 +1,8 @@
 'use client';
 
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Dialog, Transition } from '@headlessui/react';
 import {
   Bars3Icon,
@@ -15,9 +15,9 @@ import {
   ChartBarIcon,
   Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
-import { useSession, signOut } from 'next-auth/react';
 import { clsx } from 'clsx';
 import { NotificationBell } from '@/components';
+import { isAuthenticated, logout } from '@/lib/api';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
@@ -36,7 +36,13 @@ export default function DashboardLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.replace('/auth/login');
+    }
+  }, [router]);
 
   return (
     <div className="h-full">
@@ -169,15 +175,13 @@ export default function DashboardLayout({
               <li className="mt-auto">
                 <div className="flex items-center gap-x-4 px-2 py-3 text-sm font-semibold leading-6 text-gray-900">
                   <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                    <span className="text-sm font-medium text-gray-600">
-                      {session?.user?.name?.[0]?.toUpperCase() || 'U'}
-                    </span>
+                    <span className="text-sm font-medium text-gray-600">U</span>
                   </div>
                   <span className="sr-only">Your profile</span>
-                  <span aria-hidden="true">{session?.user?.name || 'User'}</span>
+                  <span aria-hidden="true">User</span>
                 </div>
                 <button
-                  onClick={() => signOut({ callbackUrl: '/' })}
+                  onClick={() => logout()}
                   className="w-full text-left px-2 py-2 text-sm text-gray-500 hover:text-gray-700"
                 >
                   Sign out
