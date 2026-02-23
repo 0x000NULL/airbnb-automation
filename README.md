@@ -76,6 +76,7 @@ python scripts/seed_data.py
 - Frontend: http://localhost:3000
 - API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
+- **[Onboarding Guide](docs/ONBOARDING.md)** — Step-by-step setup for Celery scheduling, properties, notifications (SendGrid/Twilio), and Stripe payments
 
 ### Manual Setup (without Docker)
 
