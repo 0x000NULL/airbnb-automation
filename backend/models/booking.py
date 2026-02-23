@@ -49,6 +49,12 @@ class AirbnbBooking(Base):
         primary_key=True,
         default=uuid.uuid4,
     )
+    external_id: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        index=True,
+        comment="External ID from Airbnb/VRBO for deduplication",
+    )
     property_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("properties.id", ondelete="CASCADE"),

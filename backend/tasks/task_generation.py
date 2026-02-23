@@ -68,7 +68,7 @@ async def _task_exists(
     result = await session.execute(
         select(Task).where(
             Task.property_id == property_id,
-            Task.booking_id == booking_id,
+            Task.airbnb_booking_id == booking_id,
             Task.type == task_type,
         )
     )
@@ -82,7 +82,7 @@ async def _save_generated_task(
     task = Task(
         type=generated.type,
         property_id=generated.property_id,
-        booking_id=generated.booking_id,
+        airbnb_booking_id=generated.booking_id,
         description=generated.description,
         required_skills=generated.required_skills,
         budget=generated.budget,
@@ -306,7 +306,7 @@ def regenerate_task(task_id: str) -> dict:
 
                 # Get booking and property
                 booking, prop = await _get_booking_with_property(
-                    session, task.booking_id
+                    session, task.airbnb_booking_id
                 )
 
                 if not booking or not prop:

@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FunnelIcon } from '@heroicons/react/24/outline';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { FunnelIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { tasksApi } from '@/lib/api';
 
 const statusColors: Record<string, string> = {
@@ -32,6 +34,7 @@ const typeOptions = [
 ];
 
 export default function TasksPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -54,11 +57,17 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Manage property management tasks and bookings
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Manage property management tasks and bookings
+          </p>
+        </div>
+        <Link href="/dashboard/tasks/new" className="btn-primary flex items-center gap-2">
+          <PlusIcon className="h-5 w-5" />
+          Create Task
+        </Link>
       </div>
 
       {/* Filters */}
@@ -124,7 +133,11 @@ export default function TasksPage() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {data.tasks.map((task) => (
-                <tr key={task.id} className="hover:bg-gray-50">
+                <tr
+                  key={task.id}
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => router.push(`/dashboard/tasks/${task.id}`)}
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
                       {task.type.charAt(0).toUpperCase() + task.type.slice(1)}
@@ -164,7 +177,10 @@ export default function TasksPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     {task.status === 'pending' && (
                       <button
-                        onClick={() => bookMutation.mutate(task.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          bookMutation.mutate(task.id);
+                        }}
                         disabled={bookMutation.isPending}
                         className="text-primary-600 hover:text-primary-900"
                       >

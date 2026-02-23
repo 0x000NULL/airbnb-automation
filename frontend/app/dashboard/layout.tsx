@@ -17,6 +17,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useSession, signOut } from 'next-auth/react';
 import { clsx } from 'clsx';
+import { NotificationBell } from '@/components';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
@@ -206,7 +207,7 @@ export default function DashboardLayout({
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="flex flex-1" />
             <div className="flex items-center gap-x-4 lg:gap-x-6">
-              {/* Notification bell could go here */}
+              <NotificationBell />
             </div>
           </div>
         </div>

@@ -314,7 +314,7 @@ async def seed_database():
                 id=uuid4(),
                 type=task_type,
                 property_id=prop.id,
-                booking_id=booking.id,
+                airbnb_booking_id=booking.id,
                 description=f"{task_type.value.title()} for {prop.name} - {booking.guest_name}",
                 required_skills=[task_type.value],
                 budget=budget,

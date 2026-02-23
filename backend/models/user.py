@@ -24,6 +24,7 @@ class User(Base):
         phone: Phone number for SMS notifications
         is_active: Whether the account is active
         created_at: Account creation timestamp
+        updated_at: Last update timestamp
     """
 
     __tablename__ = "users"
@@ -59,6 +60,12 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
         nullable=False,
     )
 

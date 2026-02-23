@@ -85,7 +85,7 @@ def check_booking_statuses(self) -> dict:
                         continue
 
                     # Map to internal status
-                    new_status = STATUS_MAP.get(booking.status, task.status)
+                    new_status = STATUS_MAP.get(booking.get("status"), task.status)
 
                     if new_status != task.status:
                         old_status = task.status
@@ -201,7 +201,7 @@ def check_booking_status(self, task_id: str) -> dict:
                     }
 
                 # Update status if changed
-                new_status = STATUS_MAP.get(booking.status, task.status)
+                new_status = STATUS_MAP.get(booking.get("status"), task.status)
                 old_status = task.status
 
                 if new_status != old_status:
@@ -220,7 +220,7 @@ def check_booking_status(self, task_id: str) -> dict:
                 return {
                     "task_id": task_id,
                     "booking_id": task.rentahuman_booking_id,
-                    "rentahuman_status": booking.status,
+                    "rentahuman_status": booking.get("status"),
                     "internal_status": new_status.value,
                     "status_changed": new_status != old_status,
                     "human_name": task.assigned_human.get("name")
@@ -275,7 +275,7 @@ def verify_completion(task_id: str) -> dict:
                     task.rentahuman_booking_id
                 )
 
-                verified = booking and booking.status == "completed"
+                verified = booking and booking.get("status") == "completed"
 
                 if verified:
                     # Process payment
@@ -300,7 +300,7 @@ def verify_completion(task_id: str) -> dict:
                 return {
                     "task_id": task_id,
                     "verified": False,
-                    "rentahuman_status": booking.status if booking else "unknown",
+                    "rentahuman_status": booking.get("status") if booking else "unknown",
                 }
 
             except Exception as e:

@@ -20,10 +20,10 @@ export default function PropertiesPage() {
             Manage your rental properties
           </p>
         </div>
-        <button className="btn-primary flex items-center gap-2">
+        <Link href="/dashboard/properties/new" className="btn-primary flex items-center gap-2">
           <PlusIcon className="h-5 w-5" />
           Add Property
-        </button>
+        </Link>
       </div>
 
       {isLoading ? (
@@ -80,10 +80,10 @@ export default function PropertiesPage() {
             Get started by adding your first property.
           </p>
           <div className="mt-6">
-            <button className="btn-primary">
+            <Link href="/dashboard/properties/new" className="btn-primary inline-flex items-center">
               <PlusIcon className="h-5 w-5 mr-2" />
               Add Property
-            </button>
+            </Link>
           </div>
         </div>
       )}
