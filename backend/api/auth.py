@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from jose import jwt
 from passlib.context import CryptContext
 from slowapi import Limiter
@@ -92,7 +92,7 @@ def create_refresh_token(user_id: str) -> str:
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("3/minute")
-async def signup(request: Request, user_data: UserCreate, db: DbSession) -> TokenResponse:
+async def signup(request: Request, response: Response, user_data: UserCreate, db: DbSession) -> TokenResponse:
     """
     Create a new user account.
 

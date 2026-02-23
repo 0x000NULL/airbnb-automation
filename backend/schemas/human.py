@@ -91,6 +91,7 @@ class HumanReviewList(BaseModel):
     reviews: list[HumanReview] = Field(..., description="List of reviews")
     total: int = Field(..., description="Total count of reviews")
     average_rating: float = Field(..., description="Average rating")
+    note: str | None = Field(None, description="Status note about data availability")
 
 
 class HumanAvailability(BaseModel):
@@ -102,6 +103,7 @@ class HumanAvailability(BaseModel):
     booked_slots: list[dict] = Field(
         default_factory=list, description="Currently booked time slots"
     )
+    note: str | None = Field(None, description="Status note about data availability")
 
 
 class Skill(BaseModel):

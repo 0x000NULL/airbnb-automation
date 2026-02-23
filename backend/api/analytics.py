@@ -5,7 +5,7 @@ Analytics API endpoints.
 import logging
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import and_, func, select
 
 from api.deps import CurrentUser, DbSession
@@ -35,6 +35,19 @@ async def get_analytics_summary(
     """
     Get overview analytics summary.
     """
+    try:
+        return await _get_analytics_summary(current_user, db)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error fetching analytics summary")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch analytics summary: {str(e)}",
+        )
+
+
+async def _get_analytics_summary(current_user, db) -> AnalyticsSummary:
     # Get user's properties
     property_result = await db.execute(
         select(Property.id).where(Property.host_id == current_user.id)

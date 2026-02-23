@@ -214,6 +214,39 @@ export const humansApi = {
   },
 };
 
+// ── Auth helpers ───────────────────────────────────────────────────────
+
+export const authApi = {
+  login: (email: string, password: string) =>
+    apiFetch<{ access_token: string; refresh_token?: string; token_type: string }>(
+      '/auth/login',
+      { method: 'POST', body: JSON.stringify({ email, password }) }
+    ),
+  signup: (name: string, email: string, password: string) =>
+    apiFetch<{ access_token: string; refresh_token?: string; token_type: string; id: string }>(
+      '/auth/signup',
+      { method: 'POST', body: JSON.stringify({ name, email, password }) }
+    ),
+};
+
+export function storeTokens(data: { access_token: string; refresh_token?: string }) {
+  localStorage.setItem('access_token', data.access_token);
+  if (data.refresh_token) {
+    localStorage.setItem('refresh_token', data.refresh_token);
+  }
+}
+
+export function logout() {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  window.location.href = '/auth/login';
+}
+
+export function isAuthenticated(): boolean {
+  if (typeof window === 'undefined') return false;
+  return !!localStorage.getItem('access_token');
+}
+
 export const notificationsApi = {
   list: (params?: { unread_only?: boolean; limit?: number; offset?: number }) => {
     const qs = params ? '?' + new URLSearchParams(

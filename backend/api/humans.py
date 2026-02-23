@@ -133,38 +133,12 @@ async def get_human_reviews(
     Returns mock data for now.
     """
     # TODO: Implement actual reviews fetch when RentAHuman API supports it
-    # For now, return mock reviews
-    mock_reviews = [
-        {
-            "id": "review_001",
-            "rating": 5.0,
-            "comment": "Excellent work, very thorough cleaning!",
-            "reviewer_name": "Host A",
-            "date": "2026-02-15",
-            "task_type": "cleaning",
-        },
-        {
-            "id": "review_002",
-            "rating": 4.5,
-            "comment": "Good job, arrived on time.",
-            "reviewer_name": "Host B",
-            "date": "2026-02-10",
-            "task_type": "cleaning",
-        },
-        {
-            "id": "review_003",
-            "rating": 5.0,
-            "comment": "Would definitely hire again!",
-            "reviewer_name": "Host C",
-            "date": "2026-02-05",
-            "task_type": "cleaning",
-        },
-    ]
-
+    # Returning empty data — no fake reviews. Pending RentAHuman API review support.
     return HumanReviewList(
-        reviews=mock_reviews[:limit],
-        total=len(mock_reviews),
-        average_rating=4.8,
+        reviews=[],
+        total=0,
+        average_rating=0.0,
+        note="Reviews will be available when RentAHuman API adds review support",
     )
 
 
@@ -180,20 +154,11 @@ async def get_human_availability(
     Returns mock data for now.
     """
     # TODO: Implement actual availability check when RentAHuman API supports it
+    # Returning empty/unknown data — no fake availability. Pending RentAHuman API support.
     return HumanAvailability(
         human_id=human_id,
-        available=True,
+        available=False,
         next_available=None,
-        booked_slots=[
-            {
-                "date": "2026-02-25",
-                "start_time": "09:00",
-                "end_time": "12:00",
-            },
-            {
-                "date": "2026-02-26",
-                "start_time": "14:00",
-                "end_time": "18:00",
-            },
-        ],
+        booked_slots=[],
+        note="Availability data will be available when RentAHuman API adds support",
     )
