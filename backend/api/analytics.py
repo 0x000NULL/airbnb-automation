@@ -302,7 +302,7 @@ async def get_human_performance(
             else 0.0
         )
         # Calculate on_time_rate from actual deadline vs completed_at data
-        on_time_rate = 95.0  # fallback default
+        on_time_rate = 0.0  # no deadline data available
         # Query tasks for this human that have both deadline and completed_at
         human_task_result = await db.execute(
             select(Task).where(
