@@ -6,7 +6,7 @@ import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy import select
@@ -45,14 +45,19 @@ DbSession = Annotated[AsyncSession, Depends(get_db)]
 
 
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(HTTPBearer(auto_error=False))],
     db: DbSession,
 ) -> User:
     """
     Dependency that validates JWT token and returns current user.
 
+    Checks for token in httpOnly cookie first, then falls back to
+    Authorization header.
+
     Args:
-        credentials: HTTP Bearer credentials
+        request: FastAPI request (for cookie access)
+        credentials: HTTP Bearer credentials (optional)
         db: Database session
 
     Returns:
@@ -67,8 +72,14 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    try:
+    # Check cookie first, then Authorization header
+    token = request.cookies.get("access_token")
+    if not token and credentials:
         token = credentials.credentials
+    if not token:
+        raise credentials_exception
+
+    try:
         payload = jwt.decode(
             token,
             settings.jwt_secret_key,
@@ -106,6 +117,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 async def get_optional_user(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(HTTPBearer(auto_error=False))],
     db: DbSession,
 ) -> User | None:
@@ -114,11 +126,11 @@ async def get_optional_user(
 
     Returns None if no token provided or token is invalid.
     """
-    if credentials is None:
+    if credentials is None and not request.cookies.get("access_token"):
         return None
 
     try:
-        return await get_current_user(credentials, db)
+        return await get_current_user(request, credentials, db)
     except HTTPException:
         return None
 

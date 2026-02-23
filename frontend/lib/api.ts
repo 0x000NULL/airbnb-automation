@@ -8,6 +8,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const API_V1 = `${API_BASE}/api/v1`;
 
 function getAuthHeaders(): Record<string, string> {
+  // Fallback: check localStorage for token (backward compat / non-cookie flows)
   if (typeof window === 'undefined') return {};
   const token = localStorage.getItem('access_token');
   if (!token) return {};
@@ -17,6 +18,7 @@ function getAuthHeaders(): Record<string, string> {
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_V1}${path}`, {
     ...init,
+    credentials: 'include', // send httpOnly cookies automatically
     headers: {
       'Content-Type': 'application/json',
       ...getAuthHeaders(),
