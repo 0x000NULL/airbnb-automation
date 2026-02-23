@@ -8,13 +8,17 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 import httpx
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from jose import jwt
 from passlib.context import CryptContext
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import select
 
 from api.deps import CurrentUser, DbSession
 from config import settings
+
+limiter = Limiter(key_func=get_remote_address)
 from models.automation_config import AutomationConfig
 from models.user import User
 from schemas.user import (
@@ -48,16 +52,7 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(user_id: str, expires_delta: timedelta | None = None) -> str:
-    """
-    Create a JWT access token.
-
-    Args:
-        user_id: User's UUID as string
-        expires_delta: Optional custom expiration time
-
-    Returns:
-        Encoded JWT token
-    """
+    """Create a JWT access token."""
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
@@ -69,6 +64,7 @@ def create_access_token(user_id: str, expires_delta: timedelta | None = None) ->
         "sub": user_id,
         "exp": expire,
         "iat": datetime.now(timezone.utc),
+        "type": "access",
     }
 
     return jwt.encode(
@@ -78,8 +74,25 @@ def create_access_token(user_id: str, expires_delta: timedelta | None = None) ->
     )
 
 
+def create_refresh_token(user_id: str) -> str:
+    """Create a JWT refresh token (7 day expiry)."""
+    expire = datetime.now(timezone.utc) + timedelta(days=7)
+    to_encode = {
+        "sub": user_id,
+        "exp": expire,
+        "iat": datetime.now(timezone.utc),
+        "type": "refresh",
+    }
+    return jwt.encode(
+        to_encode,
+        settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+    )
+
+
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def signup(user_data: UserCreate, db: DbSession) -> TokenResponse:
+@limiter.limit("3/minute")
+async def signup(request: Request, user_data: UserCreate, db: DbSession) -> TokenResponse:
     """
     Create a new user account.
 
@@ -112,11 +125,13 @@ async def signup(user_data: UserCreate, db: DbSession) -> TokenResponse:
 
     logger.info(f"New user registered: {user.email}")
 
-    # Generate token
+    # Generate tokens
     access_token = create_access_token(str(user.id))
+    refresh_token = create_refresh_token(str(user.id))
 
     return TokenResponse(
         access_token=access_token,
+        refresh_token=refresh_token,
         token_type="bearer",
         expires_in=settings.jwt_access_token_expire_minutes * 60,
         user=UserResponse.model_validate(user),
@@ -124,7 +139,8 @@ async def signup(user_data: UserCreate, db: DbSession) -> TokenResponse:
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(login_data: UserLogin, db: DbSession) -> TokenResponse:
+@limiter.limit("5/minute")
+async def login(request: Request, login_data: UserLogin, db: DbSession) -> TokenResponse:
     """
     Authenticate user and return JWT token.
     """
@@ -147,11 +163,13 @@ async def login(login_data: UserLogin, db: DbSession) -> TokenResponse:
 
     logger.info(f"User logged in: {user.email}")
 
-    # Generate token
+    # Generate tokens
     access_token = create_access_token(str(user.id))
+    refresh_token = create_refresh_token(str(user.id))
 
     return TokenResponse(
         access_token=access_token,
+        refresh_token=refresh_token,
         token_type="bearer",
         expires_in=settings.jwt_access_token_expire_minutes * 60,
         user=UserResponse.model_validate(user),
@@ -159,7 +177,8 @@ async def login(login_data: UserLogin, db: DbSession) -> TokenResponse:
 
 
 @router.post("/oauth/google", response_model=TokenResponse)
-async def google_oauth(oauth_data: GoogleOAuthRequest, db: DbSession) -> TokenResponse:
+@limiter.limit("5/minute")
+async def google_oauth(request: Request, oauth_data: GoogleOAuthRequest, db: DbSession) -> TokenResponse:
     """
     Authenticate via Google OAuth.
 
@@ -263,11 +282,57 @@ async def google_oauth(oauth_data: GoogleOAuthRequest, db: DbSession) -> TokenRe
             )
         logger.info(f"OAuth user logged in: {email}")
 
-    # Step 4: Return JWT token
+    # Step 4: Return JWT tokens
     access_token = create_access_token(str(user.id))
+    refresh_token = create_refresh_token(str(user.id))
 
     return TokenResponse(
         access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        expires_in=settings.jwt_access_token_expire_minutes * 60,
+        user=UserResponse.model_validate(user),
+    )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(request: Request, db: DbSession) -> TokenResponse:
+    """
+    Refresh an access token using a refresh token.
+
+    Send the refresh token in the Authorization header as Bearer token.
+    """
+    from fastapi.security import HTTPBearer
+    from jose import JWTError
+
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
+
+    token = auth_header.split(" ", 1)[1]
+
+    try:
+        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
+
+    from uuid import UUID
+    result = await db.execute(select(User).where(User.id == UUID(user_id)))
+    user = result.scalar_one_or_none()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
+
+    new_access_token = create_access_token(str(user.id))
+    new_refresh_token = create_refresh_token(str(user.id))
+
+    return TokenResponse(
+        access_token=new_access_token,
+        refresh_token=new_refresh_token,
         token_type="bearer",
         expires_in=settings.jwt_access_token_expire_minutes * 60,
         user=UserResponse.model_validate(user),

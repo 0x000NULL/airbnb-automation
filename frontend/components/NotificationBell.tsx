@@ -1,61 +1,12 @@
 'use client';
 
-import { Fragment, useState } from 'react';
+import { Fragment } from 'react';
 import { Popover, Transition } from '@headlessui/react';
 import { BellIcon, CheckCircleIcon, ExclamationCircleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { BellIcon as BellSolidIcon } from '@heroicons/react/24/solid';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-
-interface Notification {
-  id: string;
-  type: 'info' | 'success' | 'warning' | 'error';
-  title: string;
-  message: string;
-  link?: string;
-  read: boolean;
-  created_at: string;
-}
-
-// Mock notifications - in production, these would come from an API
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'success',
-    title: 'Task Completed',
-    message: 'Cleaning task for Luxury Strip View has been completed',
-    link: '/dashboard/tasks',
-    read: false,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    type: 'warning',
-    title: 'Upcoming Checkout',
-    message: 'John Smith checking out tomorrow from Desert Oasis House',
-    link: '/dashboard/bookings',
-    read: false,
-    created_at: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: '3',
-    type: 'info',
-    title: 'New Booking',
-    message: 'Sarah Johnson booked Downtown Vegas Condo for next week',
-    link: '/dashboard/bookings',
-    read: true,
-    created_at: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: '4',
-    type: 'error',
-    title: 'Booking Failed',
-    message: 'Could not find available cleaner for maintenance task',
-    link: '/dashboard/tasks',
-    read: true,
-    created_at: new Date(Date.now() - 172800000).toISOString(),
-  },
-];
+import { notificationsApi, NotificationItem } from '@/lib/api';
 
 const typeIcons = {
   info: InformationCircleIcon,
@@ -84,24 +35,27 @@ function formatTimeAgo(dateString: string): string {
 }
 
 export default function NotificationBell() {
-  // In production, fetch notifications from API
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const queryClient = useQueryClient();
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  // Poll notifications from backend every 30 seconds
+  const { data } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => notificationsApi.list({ limit: 20 }),
+    refetchInterval: 30000,
+  });
 
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-  };
+  const notifications = data?.notifications ?? [];
+  const unreadCount = data?.unread_count ?? 0;
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
+  const markReadMutation = useMutation({
+    mutationFn: (id: string) => notificationsApi.markRead(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+  });
 
-  const clearAll = () => {
-    setNotifications([]);
-  };
+  const markAllReadMutation = useMutation({
+    mutationFn: () => notificationsApi.markAllRead(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+  });
 
   return (
     <Popover className="relative">
@@ -136,18 +90,10 @@ export default function NotificationBell() {
                 <div className="flex gap-2">
                   {unreadCount > 0 && (
                     <button
-                      onClick={markAllAsRead}
+                      onClick={() => markAllReadMutation.mutate()}
                       className="text-xs text-primary-600 hover:text-primary-700"
                     >
                       Mark all read
-                    </button>
-                  )}
-                  {notifications.length > 0 && (
-                    <button
-                      onClick={clearAll}
-                      className="text-xs text-gray-500 hover:text-gray-700"
-                    >
-                      Clear all
                     </button>
                   )}
                 </div>
@@ -173,26 +119,16 @@ export default function NotificationBell() {
                             !notification.read ? 'bg-primary-50/50' : ''
                           }`}
                           onClick={() => {
-                            markAsRead(notification.id);
-                            if (notification.link) {
-                              close();
-                            }
+                            if (!notification.read) markReadMutation.mutate(notification.id);
+                            if (notification.link) close();
                           }}
                         >
                           {notification.link ? (
                             <Link href={notification.link} className="block">
-                              <NotificationContent
-                                notification={notification}
-                                Icon={Icon}
-                                colorClass={colorClass}
-                              />
+                              <NotificationContent notification={notification} Icon={Icon} colorClass={colorClass} />
                             </Link>
                           ) : (
-                            <NotificationContent
-                              notification={notification}
-                              Icon={Icon}
-                              colorClass={colorClass}
-                            />
+                            <NotificationContent notification={notification} Icon={Icon} colorClass={colorClass} />
                           )}
                         </li>
                       );
@@ -201,7 +137,6 @@ export default function NotificationBell() {
                 )}
               </div>
 
-              {/* Footer */}
               {notifications.length > 0 && (
                 <div className="px-4 py-3 bg-gray-50 rounded-b-lg border-t border-gray-200">
                   <Link
@@ -226,7 +161,7 @@ function NotificationContent({
   Icon,
   colorClass,
 }: {
-  notification: Notification;
+  notification: NotificationItem;
   Icon: typeof InformationCircleIcon;
   colorClass: string;
 }) {
@@ -245,9 +180,7 @@ function NotificationContent({
           )}
         </div>
         <p className="text-sm text-gray-500 truncate">{notification.message}</p>
-        <p className="mt-1 text-xs text-gray-400">
-          {formatTimeAgo(notification.created_at)}
-        </p>
+        <p className="mt-1 text-xs text-gray-400">{formatTimeAgo(notification.created_at)}</p>
       </div>
     </div>
   );

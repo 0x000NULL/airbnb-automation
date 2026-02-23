@@ -7,6 +7,8 @@ All models use SQLAlchemy 2.0 style with mapped_column().
 from models.automation_config import AutomationConfig, HumanPreference, NotificationMethod
 from models.booking import AirbnbBooking, BookingSource
 from models.booking_log import BookingLog, BookingLogEvent
+from models.notification import Notification, NotificationType
+from models.payment import PaymentRecord, PaymentStatus
 from models.property import Property
 from models.task import Task, TaskStatus, TaskType
 from models.user import User
@@ -30,4 +32,10 @@ __all__ = [
     # Audit
     "BookingLog",
     "BookingLogEvent",
+    # Payment
+    "PaymentRecord",
+    "PaymentStatus",
+    # Notification
+    "Notification",
+    "NotificationType",
 ]

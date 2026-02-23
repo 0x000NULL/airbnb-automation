@@ -90,10 +90,21 @@ class StorageService:
         key = self._generate_key(task_id, filename)
 
         if not self.enabled:
-            # Mock mode - return a fake URL
-            mock_url = f"https://mock-storage.local/tasks/{task_id}/{filename}"
-            logger.info(f"Mock upload: {mock_url}")
-            return mock_url
+            # Dev/mock mode - use local filesystem storage
+            import os
+            upload_dir = f"/tmp/airbnb-automation/uploads/tasks/{task_id}"
+            os.makedirs(upload_dir, exist_ok=True)
+            local_key = self._generate_key(task_id, filename).replace("tasks/", "")
+            local_path = os.path.join(upload_dir, os.path.basename(local_key))
+            if isinstance(file_data, bytes):
+                with open(local_path, "wb") as f:
+                    f.write(file_data)
+            else:
+                with open(local_path, "wb") as f:
+                    f.write(file_data.read())
+            relative_url = f"/uploads/tasks/{task_id}/{os.path.basename(local_key)}"
+            logger.info(f"Local upload: {relative_url}")
+            return relative_url
 
         try:
             # Convert bytes to BytesIO if needed
@@ -160,7 +171,16 @@ class StorageService:
             List of public URLs
         """
         if not self.enabled:
-            return []
+            # Dev/mock mode - list files from local filesystem
+            import os
+            upload_dir = f"/tmp/airbnb-automation/uploads/tasks/{task_id}"
+            if not os.path.exists(upload_dir):
+                return []
+            return [
+                f"/uploads/tasks/{task_id}/{f}"
+                for f in os.listdir(upload_dir)
+                if os.path.isfile(os.path.join(upload_dir, f))
+            ]
 
         prefix = f"tasks/{task_id}/"
 

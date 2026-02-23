@@ -45,6 +45,11 @@ class AirbnbService:
         """
         self.mock_mode = mock_mode
         self._mock_bookings_cache: dict[str, list[AirbnbBookingData]] = {}
+        if self.mock_mode:
+            logger.warning(
+                "⚠️  AirbnbService running in MOCK MODE — returning synthetic data. "
+                "Set RENTAHUMAN_MOCK_MODE=false for real Airbnb integration."
+            )
 
     async def fetch_bookings(
         self,
@@ -66,8 +71,11 @@ class AirbnbService:
         if self.mock_mode:
             return self._generate_mock_bookings(listing_id, start_date, end_date)
 
-        # TODO: Implement real Airbnb API or scraping
-        return await self._fetch_via_selenium(listing_id, start_date, end_date)
+        raise NotImplementedError(
+            "Real Airbnb API integration is not yet implemented. "
+            "Set RENTAHUMAN_MOCK_MODE=true for development, or implement "
+            "_fetch_via_selenium() with proper Airbnb credentials."
+        )
 
     async def get_booking(
         self, listing_id: str, booking_id: str

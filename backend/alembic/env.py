@@ -17,6 +17,8 @@ from database import Base
 from models import (
     AirbnbBooking,
     AutomationConfig,
+    Notification,
+    PaymentRecord,
     Property,
     Task,
     User,

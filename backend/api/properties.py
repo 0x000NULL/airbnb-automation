@@ -5,8 +5,8 @@ Property management API endpoints.
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from api.deps import CurrentUser, DbSession
@@ -63,20 +63,30 @@ async def create_property(
 async def list_properties(
     current_user: CurrentUser,
     db: DbSession,
+    limit: int = Query(100, ge=1, le=500, description="Max results"),
+    offset: int = Query(0, ge=0, description="Offset for pagination"),
 ) -> PropertyList:
     """
     List all properties for the current user.
     """
+    # Total count
+    count_result = await db.execute(
+        select(func.count(Property.id)).where(Property.host_id == current_user.id)
+    )
+    total = count_result.scalar() or 0
+
     result = await db.execute(
         select(Property)
         .where(Property.host_id == current_user.id)
         .order_by(Property.created_at.desc())
+        .offset(offset)
+        .limit(limit)
     )
     properties = result.scalars().all()
 
     return PropertyList(
         properties=[PropertyResponse.model_validate(p) for p in properties],
-        total=len(properties),
+        total=total,
     )
 
 

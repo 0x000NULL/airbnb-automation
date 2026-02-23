@@ -1,3 +1,7 @@
+# IMPORTANT: Before running, copy the environment template:
+#   cp .env.example .env
+# Then edit .env with your configuration. See docs/SETUP.md for details.
+
 version: '3.8'
 
 services:

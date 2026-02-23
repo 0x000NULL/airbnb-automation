@@ -11,16 +11,20 @@ This guide covers setting up the Airbnb/VRBO Hosting Automation platform for loc
 
 ## Quick Start
 
-### 1. Clone and Setup Environment
+### 1. Copy Environment File (REQUIRED FIRST STEP)
 
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd airbnb-automation
 
-# Copy environment template
+# ⚠️  REQUIRED: Copy the environment template before anything else
 cp .env.example .env
+# Then edit .env with your configuration (see below)
 ```
+
+> **Note:** The application will not start correctly without a `.env` file.
+> At minimum, set `JWT_SECRET_KEY` to a secure random value for non-development use.
 
 ### 2. Configure Environment Variables
 

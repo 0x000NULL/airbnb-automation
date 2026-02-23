@@ -9,8 +9,12 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from config import settings
 
@@ -20,6 +24,12 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+# Rate limiter (Issue #3)
+limiter = Limiter(key_func=get_remote_address)
+
+# Default JWT secret that must be changed in production
+_DEFAULT_JWT_SECRET = "your-super-secret-jwt-key-change-in-production"
 
 
 @asynccontextmanager
@@ -34,6 +44,37 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Starting Airbnb Automation API...")
     logger.info(f"Environment: {settings.environment}")
     logger.info(f"RentAHuman Mock Mode: {settings.rentahuman_mock_mode}")
+
+    # Issue #1: Reject default JWT secret in non-development environments
+    if settings.jwt_secret_key == _DEFAULT_JWT_SECRET and not settings.is_development:
+        raise RuntimeError(
+            "FATAL: Default JWT secret key detected in non-development environment. "
+            "Set a secure JWT_SECRET_KEY in your environment variables."
+        )
+    elif settings.jwt_secret_key == _DEFAULT_JWT_SECRET:
+        logger.warning(
+            "⚠️  Using default JWT secret key. This is only acceptable in development."
+        )
+
+    # Issue #7-8: Warn when mock mode is active for Airbnb/VRBO services
+    if settings.rentahuman_mock_mode:
+        logger.warning(
+            "⚠️  Airbnb/VRBO services are running in MOCK MODE. "
+            "Set RENTAHUMAN_MOCK_MODE=false and configure real API credentials for production."
+        )
+
+    # Issue #12: Warn when Stripe is in mock mode
+    if not settings.stripe_enabled:
+        logger.warning(
+            "⚠️  Stripe is NOT configured — payments will use mock mode. "
+            "Set STRIPE_SECRET_KEY for real payment processing."
+        )
+
+    # Issue #11: Mount local uploads directory for dev/mock storage
+    import os
+    upload_dir = "/tmp/airbnb-automation/uploads"
+    os.makedirs(upload_dir, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=upload_dir), name="uploads")
 
     yield
 
@@ -55,17 +96,33 @@ app = FastAPI(
     redoc_url="/redoc" if settings.is_development else None,
 )
 
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # Next.js frontend
-        "http://127.0.0.1:3000",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Rate limiter state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Issue #2: Environment-conditional CORS
+if settings.is_production:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ],
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+        allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
 # Import and include routers

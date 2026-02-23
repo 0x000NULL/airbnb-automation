@@ -301,6 +301,30 @@ async def get_human_performance(
             if data["ratings"]
             else 0.0
         )
+        # Calculate on_time_rate from actual deadline vs completed_at data
+        on_time_rate = 95.0  # fallback default
+        # Query tasks for this human that have both deadline and completed_at
+        human_task_result = await db.execute(
+            select(Task).where(
+                and_(
+                    Task.property_id.in_(property_ids),
+                    Task.status == TaskStatus.COMPLETED,
+                    Task.assigned_human.is_not(None),
+                    Task.scheduled_date >= start_date,
+                    Task.scheduled_date <= end_date,
+                )
+            )
+        )
+        human_tasks_all = human_task_result.scalars().all()
+        tasks_with_deadline = [
+            t for t in human_tasks_all
+            if t.assigned_human and t.assigned_human.get("id") == human_id
+            and t.deadline is not None and t.completed_at is not None
+        ]
+        if tasks_with_deadline:
+            on_time_count = sum(1 for t in tasks_with_deadline if t.completed_at <= t.deadline)
+            on_time_rate = round((on_time_count / len(tasks_with_deadline)) * 100, 1)
+
         stats_list.append(
             HumanStats(
                 human_id=human_id,
@@ -308,7 +332,7 @@ async def get_human_performance(
                 tasks_completed=data["tasks_completed"],
                 total_spent=data["total_spent"],
                 average_rating=round(avg_rating, 2),
-                on_time_rate=95.0,  # TODO: Calculate from actual data
+                on_time_rate=on_time_rate,
                 properties_worked=len(data["properties"]),
             )
         )

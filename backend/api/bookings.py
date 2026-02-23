@@ -199,9 +199,42 @@ async def sync_booking(
             detail="Booking not found",
         )
 
-    # TODO: Implement actual sync from Airbnb/VRBO
-    # For now, just update the synced_at timestamp
     from datetime import datetime, timezone
+    from models.booking import BookingSource
+    from services.airbnb_service import get_airbnb_service
+    from services.vrbo_service import get_vrbo_service
+
+    property_obj = await db.execute(
+        select(Property).where(Property.id == booking.property_id)
+    )
+    prop = property_obj.scalar_one_or_none()
+
+    if prop and booking.source == BookingSource.AIRBNB and prop.airbnb_listing_id:
+        try:
+            svc = get_airbnb_service()
+            updated = await svc.get_booking(prop.airbnb_listing_id, booking.external_id or "")
+            if updated:
+                booking.guest_name = updated.guest_name
+                booking.checkin_date = updated.checkin_date
+                booking.checkout_date = updated.checkout_date
+                booking.guest_count = updated.guest_count
+                booking.total_price = updated.total_price
+                booking.notes = updated.notes
+        except NotImplementedError:
+            logger.info("Airbnb real sync not implemented, updating timestamp only")
+    elif prop and booking.source == BookingSource.VRBO and prop.vrbo_listing_id:
+        try:
+            svc = get_vrbo_service()
+            updated = await svc.get_booking(prop.vrbo_listing_id, booking.external_id or "")
+            if updated:
+                booking.guest_name = updated.guest_name
+                booking.checkin_date = updated.checkin_date
+                booking.checkout_date = updated.checkout_date
+                booking.guest_count = updated.guest_count
+                booking.total_price = updated.total_price
+                booking.notes = updated.notes
+        except NotImplementedError:
+            logger.info("VRBO real sync not implemented, updating timestamp only")
 
     booking.synced_at = datetime.now(timezone.utc)
     await db.commit()

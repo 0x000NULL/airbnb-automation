@@ -43,6 +43,11 @@ class VRBOService:
         """
         self.mock_mode = mock_mode
         self._mock_bookings_cache: dict[str, list[VRBOBookingData]] = {}
+        if self.mock_mode:
+            logger.warning(
+                "⚠️  VRBOService running in MOCK MODE — returning synthetic data. "
+                "Set RENTAHUMAN_MOCK_MODE=false for real VRBO integration."
+            )
 
     async def fetch_bookings(
         self,
@@ -64,8 +69,11 @@ class VRBOService:
         if self.mock_mode:
             return self._generate_mock_bookings(listing_id, start_date, end_date)
 
-        # TODO: Implement real VRBO API
-        return await self._fetch_via_api(listing_id, start_date, end_date)
+        raise NotImplementedError(
+            "Real VRBO API integration is not yet implemented. "
+            "Set RENTAHUMAN_MOCK_MODE=true for development, or implement "
+            "_fetch_via_api() with proper VRBO API credentials."
+        )
 
     async def get_booking(
         self, listing_id: str, booking_id: str
