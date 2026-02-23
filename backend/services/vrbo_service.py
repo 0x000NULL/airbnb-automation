@@ -69,6 +69,10 @@ class VRBOService:
         if self.mock_mode:
             return self._generate_mock_bookings(listing_id, start_date, end_date)
 
+        # Try iCal integration if an ical_url is provided
+        if ical_url := getattr(self, '_current_ical_url', None):
+            return await self._fetch_via_ical(ical_url, listing_id, start_date, end_date)
+
         raise NotImplementedError(
             "Real VRBO API integration is not yet implemented. "
             "Set RENTAHUMAN_MOCK_MODE=true for development, or implement "
@@ -209,6 +213,63 @@ class VRBOService:
             "Will have pet dog",
         ]
         return notes_options[booking_num % len(notes_options)]
+
+    async def fetch_bookings_with_ical(
+        self,
+        listing_id: str,
+        ical_url: str,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[VRBOBookingData]:
+        """
+        Fetch bookings using an iCal feed URL.
+
+        Args:
+            listing_id: VRBO listing ID
+            ical_url: iCal feed URL
+            start_date: Filter by start date
+            end_date: Filter by end date
+
+        Returns:
+            List of booking data
+        """
+        return await self._fetch_via_ical(ical_url, listing_id, start_date, end_date)
+
+    async def _fetch_via_ical(
+        self,
+        ical_url: str,
+        listing_id: str,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[VRBOBookingData]:
+        """
+        Fetch bookings via iCal feed.
+
+        Args:
+            ical_url: iCal feed URL
+            listing_id: VRBO listing ID
+            start_date: Filter by start date
+            end_date: Filter by end date
+
+        Returns:
+            List of VRBOBookingData
+        """
+        from services.ical_service import get_ical_service
+
+        ical_service = get_ical_service()
+        ical_bookings = await ical_service.fetch_and_parse(ical_url)
+        bookings = ical_service.to_vrbo_bookings(ical_bookings, listing_id)
+
+        # Apply date filters
+        if start_date:
+            bookings = [b for b in bookings if b.checkin_date >= start_date]
+        if end_date:
+            bookings = [b for b in bookings if b.checkout_date <= end_date]
+
+        logger.info(
+            f"Fetched {len(bookings)} VRBO bookings via iCal for listing {listing_id}"
+        )
+        return bookings
 
     async def _fetch_via_api(
         self,

@@ -95,6 +95,11 @@ class Property(Base):
         nullable=True,
         index=True,
     )
+    ical_url: Mapped[str | None] = mapped_column(
+        String(1024),
+        nullable=True,
+        comment="iCal feed URL for importing bookings from Airbnb/VRBO",
+    )
     default_checkin_time: Mapped[time] = mapped_column(
         Time,
         nullable=False,

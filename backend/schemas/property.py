@@ -40,6 +40,7 @@ class PropertyCreate(BaseModel):
     max_guests: int = Field(default=2, ge=1, le=50, description="Maximum guest capacity")
     airbnb_listing_id: str | None = Field(None, description="Airbnb listing ID")
     vrbo_listing_id: str | None = Field(None, description="VRBO listing ID")
+    ical_url: str | None = Field(None, description="iCal feed URL for booking import")
     default_checkin_time: time = Field(
         default=time(15, 0), description="Default check-in time"
     )
@@ -87,6 +88,7 @@ class PropertyUpdate(BaseModel):
     max_guests: int | None = Field(None, ge=1, le=50)
     airbnb_listing_id: str | None = None
     vrbo_listing_id: str | None = None
+    ical_url: str | None = None
     default_checkin_time: time | None = None
     default_checkout_time: time | None = None
     cleaning_budget: float | None = Field(None, ge=0)
@@ -107,6 +109,7 @@ class PropertyResponse(BaseModel):
     max_guests: int = Field(..., description="Maximum guest capacity")
     airbnb_listing_id: str | None = Field(None, description="Airbnb listing ID")
     vrbo_listing_id: str | None = Field(None, description="VRBO listing ID")
+    ical_url: str | None = Field(None, description="iCal feed URL for booking import")
     default_checkin_time: time = Field(..., description="Default check-in time")
     default_checkout_time: time = Field(..., description="Default check-out time")
     cleaning_budget: float = Field(..., description="Cleaning budget")

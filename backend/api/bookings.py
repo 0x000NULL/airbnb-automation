@@ -209,10 +209,36 @@ async def sync_booking(
     )
     prop = property_obj.scalar_one_or_none()
 
-    if prop and booking.source == BookingSource.AIRBNB and prop.airbnb_listing_id:
+    # Try iCal sync first if property has an ical_url
+    if prop and prop.ical_url and booking.external_id and booking.external_id.startswith("ical_"):
+        try:
+            from services.ical_service import get_ical_service
+
+            ical_service = get_ical_service()
+            ical_bookings = await ical_service.fetch_and_parse(prop.ical_url)
+            target_uid = booking.external_id.removeprefix("ical_")
+            for ib in ical_bookings:
+                if ib.uid == target_uid:
+                    booking.guest_name = ib.summary
+                    booking.checkin_date = ib.checkin_date
+                    booking.checkout_date = ib.checkout_date
+                    booking.notes = ib.description
+                    break
+        except Exception:
+            logger.warning("iCal sync failed for booking, falling back", exc_info=True)
+    elif prop and booking.source == BookingSource.AIRBNB and prop.airbnb_listing_id:
         try:
             svc = get_airbnb_service()
-            updated = await svc.get_booking(prop.airbnb_listing_id, booking.external_id or "")
+            if prop.ical_url:
+                all_bookings = await svc.fetch_bookings_with_ical(
+                    prop.airbnb_listing_id, prop.ical_url
+                )
+                updated = next(
+                    (b for b in all_bookings if b.external_id == booking.external_id),
+                    None,
+                )
+            else:
+                updated = await svc.get_booking(prop.airbnb_listing_id, booking.external_id or "")
             if updated:
                 booking.guest_name = updated.guest_name
                 booking.checkin_date = updated.checkin_date
@@ -225,7 +251,16 @@ async def sync_booking(
     elif prop and booking.source == BookingSource.VRBO and prop.vrbo_listing_id:
         try:
             svc = get_vrbo_service()
-            updated = await svc.get_booking(prop.vrbo_listing_id, booking.external_id or "")
+            if prop.ical_url:
+                all_bookings = await svc.fetch_bookings_with_ical(
+                    prop.vrbo_listing_id, prop.ical_url
+                )
+                updated = next(
+                    (b for b in all_bookings if b.external_id == booking.external_id),
+                    None,
+                )
+            else:
+                updated = await svc.get_booking(prop.vrbo_listing_id, booking.external_id or "")
             if updated:
                 booking.guest_name = updated.guest_name
                 booking.checkin_date = updated.checkin_date

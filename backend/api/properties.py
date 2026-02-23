@@ -3,13 +3,16 @@ Property management API endpoints.
 """
 
 import logging
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from api.deps import CurrentUser, DbSession
+from models.booking import AirbnbBooking, BookingSource
 from models.property import Property
 from schemas.property import (
     ConnectPlatformRequest,
@@ -43,6 +46,7 @@ async def create_property(
         max_guests=property_data.max_guests,
         airbnb_listing_id=property_data.airbnb_listing_id,
         vrbo_listing_id=property_data.vrbo_listing_id,
+        ical_url=property_data.ical_url,
         default_checkin_time=property_data.default_checkin_time,
         default_checkout_time=property_data.default_checkout_time,
         cleaning_budget=property_data.cleaning_budget,
@@ -239,3 +243,123 @@ async def connect_vrbo(
     logger.info(f"VRBO connected to property: {property_obj.name}")
 
     return PropertyResponse.model_validate(property_obj)
+
+
+class ICalSyncResponse(BaseModel):
+    """Response for iCal sync endpoint."""
+
+    new_bookings: int = Field(..., description="Number of new bookings imported")
+    updated_bookings: int = Field(..., description="Number of existing bookings updated")
+    total_in_feed: int = Field(..., description="Total bookings found in iCal feed")
+
+
+@router.post("/{property_id}/sync-ical", response_model=ICalSyncResponse)
+async def sync_ical(
+    property_id: UUID,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> ICalSyncResponse:
+    """
+    Manually trigger an iCal sync for a specific property.
+
+    Fetches the iCal feed, parses bookings, and upserts them into the database.
+    Returns the count of new and updated bookings.
+    """
+    result = await db.execute(
+        select(Property)
+        .where(Property.id == property_id, Property.host_id == current_user.id)
+    )
+    property_obj = result.scalar_one_or_none()
+
+    if not property_obj:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Property not found",
+        )
+
+    if not property_obj.ical_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Property does not have an iCal URL configured",
+        )
+
+    from services.ical_service import get_ical_service
+
+    ical_service = get_ical_service()
+
+    try:
+        ical_bookings = await ical_service.fetch_and_parse(property_obj.ical_url)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e),
+        )
+
+    # Determine source based on which listing ID is set
+    source = BookingSource.AIRBNB
+    if property_obj.vrbo_listing_id and not property_obj.airbnb_listing_id:
+        source = BookingSource.VRBO
+
+    # Get existing bookings for this property by external_id
+    existing_result = await db.execute(
+        select(AirbnbBooking).where(AirbnbBooking.property_id == property_id)
+    )
+    existing_bookings = {
+        b.external_id: b for b in existing_result.scalars().all() if b.external_id
+    }
+
+    new_count = 0
+    updated_count = 0
+
+    for ical_booking in ical_bookings:
+        external_id = f"ical_{ical_booking.uid}"
+
+        if external_id in existing_bookings:
+            # Update existing booking
+            existing = existing_bookings[external_id]
+            changed = False
+            if existing.guest_name != ical_booking.summary:
+                existing.guest_name = ical_booking.summary
+                changed = True
+            if existing.checkin_date != ical_booking.checkin_date:
+                existing.checkin_date = ical_booking.checkin_date
+                changed = True
+            if existing.checkout_date != ical_booking.checkout_date:
+                existing.checkout_date = ical_booking.checkout_date
+                changed = True
+            if existing.notes != ical_booking.description:
+                existing.notes = ical_booking.description
+                changed = True
+            if changed:
+                existing.synced_at = datetime.now(timezone.utc)
+                updated_count += 1
+        else:
+            # Create new booking
+            new_booking = AirbnbBooking(
+                property_id=property_id,
+                external_id=external_id,
+                guest_name=ical_booking.summary,
+                checkin_date=ical_booking.checkin_date,
+                checkout_date=ical_booking.checkout_date,
+                guest_count=1,
+                total_price=0.0,
+                notes=ical_booking.description,
+                source=source,
+                synced_at=datetime.now(timezone.utc),
+            )
+            db.add(new_booking)
+            new_count += 1
+
+    await db.commit()
+
+    logger.info(
+        f"iCal sync for property {property_obj.name}: "
+        f"{new_count} new, {updated_count} updated, "
+        f"{len(ical_bookings)} total in feed"
+    )
+
+    return ICalSyncResponse(
+        new_bookings=new_count,
+        updated_bookings=updated_count,
+        total_in_feed=len(ical_bookings),
+    )
